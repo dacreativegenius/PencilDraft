@@ -1,0 +1,58 @@
+name: Build, Test, and Deploy HTML App
+
+on:
+  push:
+    branches: ["main"] # Triggers every time you push to the main branch
+  workflow_dispatch:   # Allows you to trigger the workflow manually
+
+permissions:
+  contents: read
+  pages: write         # Required for deploying to GitHub Pages
+  id-token: write      # Required for secure authentication with GitHub Pages
+
+# Ensures only one deployment runs at a time to prevent conflicts
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # 1. TEST JOB: Validates that your code is functional and error-free
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for linters)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install HTML Linter
+        run: npm install -g htmlhint
+
+      - name: Run HTML Syntax Test
+        run: htmlhint "**/*.html"
+
+  # 2. DEPLOY JOB: Builds and publishes the standalone application
+  deploy:
+    needs: test # Only runs if the test job passes successfully
+    environment:
+      name: github-pages
+      url: ${{ steps: deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub Pages Config
+        uses: actions/configure-pages@v5
+
+      - name: Upload Build Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' # Uploads everything in the root folder (where index.html sits)
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
